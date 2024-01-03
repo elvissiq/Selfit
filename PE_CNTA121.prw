@@ -2,7 +2,7 @@
 #Include "FWMVCDEF.CH"
 #Include "TOPCONN.CH"
 #Include "TbiConn.ch"
-/*
+/*-----
 //ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
 //±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
 //±±ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄ¿±±
@@ -63,27 +63,9 @@ EndIf
 */
 
 
-	If     cIdPonto == "FORMLINEPRE"
-			oModelCNE := oModel:GetModel( 'CNEDETAIL' )
-/*
-			oModelCNE := oModel:GetModel('CNEDETAIL')
-			oModelCND := oModel:GetModel('CNDMASTER')
-			cNumPla   := oModelCXN:GetValue("CXN_NUMPLA")
-			cRevisa   := oModelCND:GetValue("CND_REVISA")
-			cContra   := oModelCND:GetValue("CND_CONTRA")
-			cChave	  := cFilCXN + cContra + cRevisa + cNumPla
-
-			oStruCNE:SetProperty("CNE_NUMMED" 	,MODEL_FIELD_INIT,{|| oModelCND:GetValue('CND_NUMMED')})
-			oStruCNE:SetProperty("CNE_NUMERO" 	,MODEL_FIELD_INIT,{|| oModelCXN:GetValue('CXN_NUMPLA')})
-			oStruCNE:SetProperty("CNE_CONTRA" 	,MODEL_FIELD_INIT,{|| oModelCND:GetValue("CND_CONTRA")})
-			oStruCNE:SetProperty("CNE_REVISA" 	,MODEL_FIELD_INIT,{|| oModelCND:GetValue("CND_REVISA")})
-			oStruCNE:SetProperty("CNE_IDPED" 	,MODEL_FIELD_INIT,{|| cIdPD})
-			oStruCNE:SetProperty("CNE_DTENT" 	,MODEL_FIELD_INIT,{|| dDataBase})
-			oStruCNE:SetProperty("CNE_TES" 		,MODEL_FIELD_OBRIGAT,.T.)
-*/
 
  //	If     cIdPonto == 'MODELCOMMITTTS' .And. INCLUI 								// Após a gravação total do modelo e DENTRO da transação.
-	ElseIf     cIdPonto == "MODELCOMMITTTS"
+	If     cIdPonto == "MODELCOMMITTTS"
 		ConOut("##_PE_CNTA121.prw - 01 - Aqui ***") 
 		If oModel:GetOperation() == MODEL_OPERATION_INSERT
 			ConOut("##_PE_CNTA121.prw - 02 - Antes da chamada do funcao GravaMatriz()") 
@@ -306,7 +288,6 @@ EndIf
 	 //	EndIf 											// --> Retirado ÉDER (PROX) 28/07/2021 
 
 /*	// --> Alterado ÉDER (PROX) 28/07/2021   (*DE..:*) 
-		
 		ElseIf cIdPonto == 'MODELCOMMITNTTS' .And. oModel:GetOperation() == MODEL_OPERATION_UPDATE .And. IsIncallstack("CN121Encerr") 		// Após a gravação total do modelo e fora da transação. 
 */	// --> Alterado ÉDER (PROX) 28/07/2021   (*PARA:*) 
 		ElseIf oModel:GetOperation() == MODEL_OPERATION_UPDATE .And. (FwIsIncallstack('CN120MedEnc') .Or. FwIsIncallstack('CN121Encerr')) 	// Após a gravação total do modelo e fora da transação. 
@@ -323,7 +304,7 @@ EndIf
 			ConOut("##_PE_CNTA121.prw - 08 - MODELCOMMITNTTS")
 			ConOut("##_PE_CNTA121.prw - 08 - INICIANDO RATEIO DA MATRIZ DE REFERENCIA")
 			// CONTRATO DE VEICULACAO (FACE E GOOGLE)
-			If !(CNL->CNL_CTRFIX == "2" .And. CNL->CNL_LPU == "2" )		// if !(CNL->CNL_MEDEVE == "1" .And. (CNL->CNL_CTRFIX=="2" .or. CNL->CNL_CTRFIX=="3" ) .And. CNL->CNL_MATRIZ=="1" .And. CNL->CNL_LPU=="2") 
+			if (CNL->CNL_MATRIZ == "1") //!(CNL->CNL_MEDEVE == "1" .And. (CNL->CNL_CTRFIX=="2" .or. CNL->CNL_CTRFIX=="3" ) .And. CNL->CNL_MATRIZ=="1" .And. CNL->CNL_LPU=="2") 
 				u_MEDMATRIZ()  											// medicao da matriz de referencia
 			EndIf
 
@@ -384,26 +365,42 @@ EndIf
 			EndDo
 
 			For nK := 1 To Len(aPeds)
+				
 				_cFil_OK := cFilAnt 					// --> Incluso  LAVOR (PROX) 11/11/2021   (MEDICAO AUTOMATICA) 
+				
 				SC7->(dbSetOrder(1))
+				
 				If SC7->(dbSeek(aPeds[nK]))
+
 					Processa( {|| u_SFCMP06(,, .T.,.T. )  }, "Aguarde...", "Enviando emails...  Filial - " + SC7->C7_FILIAL +" Pedido - " +SC7->C7_NUM )     
+
+					//Incluso por Vinicius N. de Oliveira para incluir o preço inicial nos produtos
+					If AllTrim(SC7->C7_FILIAL) == "0101"
+						
+						While !SC7->(EOF()) .And. (AllTrim(SC7->C7_FILIAL + SC7->C7_NUM) == Alltrim(aPeds[nK]))
+						
+							If SC7->C7_ZPRCINI <= 0
+						
+								RecLock("SC7",.F.)
+								SC7->C7_ZPRCINI := U_SFCONTA2()	
+								SC7->C7_XTOTAL  := SC7->C7_ZPRCINI * SC7->C7_QUANT
+								SC7->(MsUnlock())
+						
+							Endif 	
+						
+							SC7->(DbSkip())
+						
+						EndDo
+
+					Endif 
+					// ---
+
 				EndIf                   
 				cFilAnt  := _cFil_OK 					// --> Incluso  LAVOR (PROX) 11/11/2021   (MEDICAO AUTOMATICA) 
 			Next nK 
 			TRX->(dbCloseArea())
 
 		EndIf	 										// --> Incluso  ÉDER (PROX) 28/07/2021 
-
-		// 24950 - [SELFIT] Aprovação Workflow Medições
-		// se inclusão ou alteração verifica se tem aprovadores e envia email
-		If 	oModel:GetOperation() == MODEL_OPERATION_INSERT .or. oModel:GetOperation() == MODEL_OPERATION_UPDATE
-			if FindFunction("U_MCWORK03")
-				// envia workflow de aprovação caso necessario
-				U_MCWORK03()
-			Endif	
-		Endif
-
 
 /*	// --> Alterado ÉDER (PROX) 28/07/2021   (*DE..:*) 
 	ElseIf cIdPonto == 'MODELPOS' .And. !IsIncallstack("CN121Encerr") 				// Após a gravação total do modelo e fora da transação.
@@ -787,22 +784,23 @@ For nK := 1 To oModelCXN:GetQtdLine()
 				oModelCNE:GoLine(nJ)
 				If oModelCNE:GetValue("CNE_VLTOT") > 0 
 					ConOut("##_PE_CNTA121.prw - 17 - oModelCNE:GetValue('CNE_VLTOT') > 0 ") 
-					cSQL     := " SELECT ZB_FILREF , ZB_PRCUNIT , ZB_XPRINI"
-					cSQL     += " FROM "+RetSqlName("SZB")+" SZB "
-					cSQL     += "        INNER JOIN "+RetSqlName("SZA")+" SZA ON (ZA_CODIGO = ZB_CODIGO AND ZA_FILIAL = ZB_FILIAL)
-					cSQL     += " WHERE  SZB.D_E_L_E_T_ = '' "
-					cSQL     += "   AND  SZA.D_E_L_E_T_ = '' "
-					cSQL     += "   AND  ZA_NROCONT = '"+cContra  +"' "
-					cSQL     += "   AND  ZA_NROPLAN = '"+cPlanilha+"' "
-					cSQL     += "   AND  ZB_PRODUTO = '"+oModelCNE:GetValue("CNE_PRODUT")+"' "
-					If CNL->CNL_CTRFIX <> '2'  .And.  lFil 			// Os contratos de LPU tem o mesmo valor para todas as filiais
-						cSQL += "   AND  ZB_FILREF  = '"+__FilRef +"' "
+					cSQL     := " SELECT ZB_FILREF , ZB_PRCUNIT, ZB_XPRINI"+CHR(13)+CHR(10)
+					cSQL     += " FROM "+RetSqlName("SZB")+" SZB "+CHR(13)+CHR(10) 
+					cSQL     += "        INNER JOIN "+RetSqlName("SZA")+" SZA ON (ZA_CODIGO = ZB_CODIGO AND ZA_FILIAL = ZB_FILIAL) "+CHR(13)+CHR(10)
+					cSQL     += " WHERE  SZB.D_E_L_E_T_ = '' "+CHR(13)+CHR(10)
+					cSQL     += "   AND  SZA.D_E_L_E_T_ = '' "+CHR(13)+CHR(10)
+					cSQL     += "   AND  ZA_NROCONT = '"+cContra  +"' "+CHR(13)+CHR(10)
+					cSQL     += "   AND  ZA_NROPLAN = '"+cPlanilha+"' "+CHR(13)+CHR(10)
+					cSQL     += "   AND  ZB_PRODUTO = '"+oModelCNE:GetValue("CNE_PRODUT")+"' "+CHR(13)+CHR(10)
+					If CNL->CNL_MATRIZ == "1"  .And.  lFil 			// Os contratos de LPU tem o mesmo valor para todas as filiais
+						cSQL += "   AND  ZB_FILREF  = '"+__FilRef +"' "+CHR(13)+CHR(10)
 					EndIf
-					cSQL     += "   AND  ZA_REVISA  = '"+cRevisa  +"' "
-					cSQL     += "   AND  ZA_FILIAL  = '"+xFilial("CND")+"' "
+					cSQL     += "   AND  ZA_REVISA  = '"+cRevisa  +"' "+CHR(13)+CHR(10)
+					cSQL     += "   AND  ZA_FILIAL  = '"+xFilial("CND")+"' "+CHR(13)+CHR(10)
+					
 					ConOut("##_PE_CNTA121.prw - 17 - cSQL: "+cSQL) 
 
-					MemoWrite("buscaszb.sql" , cSQL) 
+					MemoWrite("C:\Temp\buscaszb.sql" , cSQL) 
 					MPSysOpenQuery(cSQL , 'TRV')
 					
 					While TRV->(!Eof())  
@@ -811,10 +809,11 @@ For nK := 1 To oModelCXN:GetQtdLine()
 						Else
 						    nValor := TRV->ZB_PRCUNIT
 						EndIf
-
 						nPrcIni := TRV->ZB_XPRINI
 						oModelCNE:SetValue("CNE_XPRINI",nPrcIni)
-						
+						nPrcTot := oModelCNE:GetValue('CNE_QUANT') * nPrcIni
+						oModelCNE:SetValue("CNE_XTOTAL",nPrcTot)
+
 						dbSelectArea("SZM")
 						RecLock("SZM",.T.)
 							SZM->ZM_FILIAL      := xFilial("SZM")

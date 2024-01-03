@@ -6,6 +6,8 @@
 Rotina de Envio do Email de Aprovação do de Medições de Contrato
 @author  Aldo Barbosa dos Santos
 @since   07/07/2022
+@Historico
+	02/01/2024 (Elvis Siqueira) - Acrescentado o FWModelActive
 /*/ 
 // =======================================================================
 User Function MCWORK03(cFilCnt, cContra, cRevisa, cNumMed, cPlanilha) 
@@ -18,6 +20,7 @@ Local nPos     := 0
 Local nR       := 0
 Local cPathMod := GetMV("MC_WFPMOD" , , "\WORKFLOW\") 
 Local cUrlWf   := GetMV("MC_URLWF"  , , "http://172.16.24.26:81/wf") 				// --> Alterado PROX 20/03/2021   [ Era: GetMV("MC_URLWF" , , "http://54.207.46.24:81/wf") ] 
+Local oModel   := FWModelActive() //Carregando Model Ativo
 
 Private MSGP_NONE := ""												// Ajuste pra corrigir erro do padrao - Cristiam Rossi em 04/10/2018
 
@@ -45,7 +48,7 @@ cNumMed   := oModelCND:GetValue("CND_NUMMED")
 cPlanilha := oModelCXN:GetValue("CXN_NUMPLA")
 
 // carrega os aprovadores (somente se ainda não aprovado)
-cQry := "Select CR_GRUPO, CR_USER, CR_APROV, AK_EMAIL from "+RetSqlName("SCR")
+cQry := "Select CR_GRUPO, CR_USER, CR_APROV, AK_EMAIL from "+RetSqlName("SCR")+" CR "
 cQry += "  Left Join "+RetSqlName("SAK")+" AK "
 cQry += "         On AK.D_E_L_E_T_ <> '*' And AK_FILIAL = '"+xFilial("SAK")+"' AND AK_COD = CR_APROV  And AK_EMAIL <> ' ' "
 cQry += " Where CR.D_E_L_E_T_ <> '*' And CR_DATALIB = ' ' And CR_FILIAL = '"+cFilCnt+"' And CR_TIPO = 'MD' And CR_NUM = '"+cNumMed+"' "
