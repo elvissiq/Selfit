@@ -70,6 +70,7 @@ Static Function ProcesXML()
 	Local cAuxFil 	:= cFilAnt
 	Local cCodCli 	:= ""
 	Local cLojCli 	:= ""
+	Local cCNPJCPF  := ""
 	Local cErrorXML := ""
 	Local cAlertXML := ""
 	Local lRetFil 	:= .F.
@@ -117,13 +118,21 @@ Static Function ProcesXML()
 		//Verifica se o cliente existe na base, caso não exista incluí
 		cCodCli := ""
 		cLojCli := ""
+
+		Do Case
+			Case AttIsMemberOf( oXml:_NFEPROC:_NFE:_INFNFE:_DEST, "_CPF" )
+				cCNPJCPF := Alltrim(oXml:_NFEPROC:_NFE:_INFNFE:_DEST:_CPF:Text)
+			Case AttIsMemberOf( oXml:_NFEPROC:_NFE:_INFNFE:_DEST, "_CNPJ" )
+				cCNPJCPF := Alltrim(oXml:_NFEPROC:_NFE:_INFNFE:_DEST:_CNPJ:Text)
+		End Case 
+
 		DBSelectArea("SA1")
 		SA1->(DBSetOrder(3))
-		If !SA1->(MsSeek(FWxFilial("SA1")+Pad(Alltrim(oXml:_NFEPROC:_NFE:_INFNFE:_DEST:_CPF:Text),FwTamSX3("A1_CGC")[1])))
+		If !SA1->(MsSeek(FWxFilial("SA1")+Pad(cCNPJCPF,FwTamSX3("A1_CGC")[1])))
 			
-			xCadCli() //Função para cadastro do cliente que não existe na base
+			xCadCli(cCNPJCPF) //Função para cadastro do cliente que não existe na base
 
-			If SA1->(MsSeek(FWxFilial("SA1")+Pad(Alltrim(oXml:_NFEPROC:_NFE:_INFNFE:_DEST:_CPF:Text),FwTamSX3("A1_CGC")[1])))
+			If SA1->(MsSeek(FWxFilial("SA1")+Pad(cCNPJCPF,FwTamSX3("A1_CGC")[1])))
 
 				cCodCli := SA1->A1_COD
 				cLojCli := SA1->A1_LOJA
@@ -328,7 +337,7 @@ Return
  | Obs.:  /                                                                     |
  *-----------------------------------------------------------------------------*/
 
-Static Function xCadCli()
+Static Function xCadCli(pCNPJCPF)
 
 	Local oModel   := Nil
   	Local oSA1Mod  := Nil
@@ -347,7 +356,7 @@ Static Function xCadCli()
 
 	oSA1Mod:SetValue("A1_TIPO"   , "F"                                                                      								)
     oSA1Mod:SetValue("A1_PESSOA" , IIF(Len(Alltrim(oXml:_NFEPROC:_NFE:_INFNFE:_DEST:_CPF:Text)) > 11,"J","F")  								)
-    oSA1Mod:SetValue("A1_CGC"    , Alltrim(oXml:_NFEPROC:_NFE:_INFNFE:_DEST:_CPF:Text)                         								)
+    oSA1Mod:SetValue("A1_CGC"    , pCNPJCPF											                         								)
     oSA1Mod:SetValue("A1_NOME"   , Upper(Pad(Alltrim(oXml:_NFEPROC:_NFE:_INFNFE:_DEST:_XNOME:Text),FwTamSX3("A1_NOME")[1]))            		)
     oSA1Mod:SetValue("A1_NREDUZ" , Upper(Pad(Alltrim(oXml:_NFEPROC:_NFE:_INFNFE:_DEST:_XNOME:Text),FwTamSX3("A1_NREDUZ")[1]))				)
     IF AttIsMemberOf( oXml:_NFEPROC:_NFE:_INFNFE:_DEST, "_EMAIL" )
